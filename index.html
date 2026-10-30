@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lavagna</title>
+<style>
+:root{
+  --paper:#dde5da;
+  --grid:#cad6c6;
+  --grid-strong:#bccab8;
+  --ink:#26302a;
+  --muted:#657a68;
+  --slip:#fffdf6;
+  --slip-edge:#ddd8c9;
+  --plum:#a64b2a;            /* accento ruggine */
+  --plum-soft:#f3e8e1;
+  --plum-edge:#c98e73;
+  --plum-ink:#5e2a16;
+  --line:#c3cfbf;
+  --field:#fffdf6;
+  --shadow:rgba(38,48,42,.10);
+  --ok:#3b6d41;
+  --warn:#8a5a1e;
+  --r:10px;                  /* raggio dei foglietti e dei controlli */
+  --r-big:14px;              /* raggio dei pannelli */
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#161d18;
+    --grid:#1f2821;
+    --grid-strong:#27332a;
+    --ink:#e6ece4;
+    --muted:#8ea18f;
+    --slip:#222c24;
+    --slip-edge:#32402f;
+    --plum:#e39a74;
+    --plum-soft:#2c211c;
+    --plum-edge:#6b4433;
+    --plum-ink:#f3d9cb;
+    --line:#2f3b31;
+    --field:#1c2420;
+    --shadow:rgba(0,0,0,.4);
+    --ok:#8cc294;
+    --warn:#d9ad6a;
+    color-scheme:dark;
+  }
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0;min-height:100%;
+  background-color:var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px),
+    linear-gradient(var(--grid-strong) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-strong) 1px,transparent 1px);
+  background-size:24px 24px,24px 24px,120px 120px,120px 120px;
+  color:var(--ink);
+  font-family:ui-sans-serif,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:16px;line-height:1.5;
+  -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 72px}
+
+.top{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+h1{font-size:1.15rem;font-weight:600;letter-spacing:.01em;margin:0}
+.ver{color:var(--muted);font-size:.72rem;font-weight:400}
+.count{color:var(--muted);font-size:.85rem}
+.top-actions{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.statusbar{color:var(--muted);font-size:.78rem;margin:0 0 16px;min-height:1.2em}
+.statusbar .ok{color:var(--ok)}
+.statusbar .warn{color:var(--warn)}
+
+button{font:inherit;color:inherit;cursor:pointer}
+.btn{background:var(--field);border:1px solid var(--line);border-radius:var(--r);padding:6px 13px;font-size:.85rem;line-height:1.3}
+.btn:hover{border-color:var(--muted)}
+.btn:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,.slip:focus-visible{outline:2px solid var(--plum);outline-offset:2px}
+.btn-plum{background:var(--plum);border-color:var(--plum);color:#fff;font-weight:500}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn-plum{color:#1a1115}}
+.btn-plum:hover{filter:brightness(1.08)}
+.btn-ghost{background:none;border:none;color:var(--muted);font-size:.8rem;padding:4px 6px}
+.btn-ghost:hover{color:var(--ink)}
+.btn[disabled]{opacity:.5;cursor:default}
+
+.compose{display:flex;gap:8px;align-items:flex-start;margin-bottom:22px}
+#nota{flex:1;min-width:0;background:var(--field);border:1px solid var(--line);border-radius:var(--r);padding:12px 15px;font:inherit;color:inherit;resize:none;min-height:48px;max-height:220px;overflow-y:auto}
+#nota::placeholder{color:var(--muted)}
+
+.ask{border:1.5px solid var(--plum-edge);border-radius:var(--r);background:var(--plum-soft);padding:18px 20px;margin-bottom:26px}
+.ask[hidden]{display:none}
+.ask-q{font-family:Iowan Old Style,Palatino,Georgia,"Times New Roman",serif;font-size:1.22rem;line-height:1.4;margin:0 0 4px;color:var(--plum-ink)}
+.ask-ctx{color:var(--muted);font-size:.84rem;margin:0 0 14px}
+.ask-ctx em{font-style:normal;color:var(--ink)}
+.ask-opts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ask-foot{margin-top:10px;color:var(--muted);font-size:.78rem}
+
+.board{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:18px;align-items:start}
+.col{min-width:0}
+.col-head{display:flex;align-items:baseline;gap:7px;padding-bottom:6px;margin-bottom:10px;border-bottom:1px solid var(--line)}
+.col-name{font-weight:600;font-size:.9rem}
+.col-n{color:var(--muted);font-size:.78rem;margin-left:auto}
+.col.over .col-head{border-bottom-color:var(--plum)}
+.col.over{background:var(--plum-soft);border-radius:var(--r)}
+.slips{display:flex;flex-direction:column;gap:9px;min-height:54px}
+
+.slip{background:var(--slip);border:1px solid var(--slip-edge);border-radius:var(--r);box-shadow:0 1px 2px var(--shadow);padding:12px 13px 10px;cursor:grab}
+.slip.dragging{opacity:.4}
+.slip-text{white-space:pre-wrap;word-wrap:break-word;font-size:.93rem}
+.slip.fatta .slip-text{text-decoration:line-through;color:var(--muted)}
+.slip-meta{display:flex;align-items:center;gap:8px;margin-top:8px;color:var(--muted);font-size:.74rem}
+.slip-meta .sp{margin-left:auto;display:flex;gap:2px}
+.slip-meta button{background:none;border:none;color:var(--muted);padding:2px 5px;font-size:.74rem;border-radius:6px}
+.slip-meta button:hover{color:var(--plum);background:var(--plum-soft);border-radius:6px}
+.tag{color:var(--plum);font-weight:500}
+
+.empty{color:var(--muted);font-size:.9rem;padding:28px 0;max-width:46ch}
+
+.panel{border:1px solid var(--line);background:var(--field);padding:18px 20px;margin-bottom:22px;border-radius:var(--r-big)}
+.panel[hidden]{display:none}
+.panel h2{font-size:.92rem;font-weight:600;margin:0 0 4px}
+.panel h3{font-size:.82rem;font-weight:600;margin:18px 0 0;padding-top:14px;border-top:1px solid var(--line)}
+.panel label{display:block;font-size:.82rem;color:var(--muted);margin:10px 0 4px}
+.panel input[type=text],.panel input[type=password],.panel input[type=number],.panel select{width:100%;background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:9px 12px;font:inherit;color:inherit}
+.panel .due{display:flex;gap:10px}
+.panel .due>div{flex:1;min-width:0}
+.panel .row{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.hint{font-size:.78rem;color:var(--muted);margin:6px 0 0;max-width:62ch}
+.prop{border-top:1px solid var(--line);margin-top:14px;padding-top:12px;font-size:.88rem}
+.prop ul{margin:6px 0 0;padding-left:18px}
+.prop li{margin-bottom:3px}
+.uso{font-size:.78rem;color:var(--muted);margin-top:10px;font-variant-numeric:tabular-nums}
+@media (max-width:600px){
+  .wrap{padding:16px 12px 60px}
+  .board{grid-template-columns:1fr}
+  .ask{padding:15px 16px}
+  .ask-q{font-size:1.1rem}
+  .panel .due{display:block}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <h1>Lavagna <span class="ver">v3</span></h1>
+    <span class="count" id="conta"></span>
+    <div class="top-actions">
+      <button class="btn" id="b-ai">Riordina con AI</button>
+      <button class="btn" id="b-set">Impostazioni</button>
+    </div>
+  </div>
+  <p class="statusbar" id="stato"></p>
+
+  <div class="compose">
+    <textarea id="nota" rows="1" placeholder="Scrivi un appunto. Invio per salvare, #parola per etichettarlo."></textarea>
+    <button class="btn btn-plum" id="b-add" style="padding:12px 16px">Salva</button>
+  </div>
+
+  <section class="ask" id="ask" hidden aria-live="polite">
+    <p class="ask-q" id="ask-q"></p>
+    <p class="ask-ctx" id="ask-ctx"></p>
+    <div class="ask-opts" id="ask-opts"></div>
+    <p class="ask-foot" id="ask-foot"></p>
+  </section>
+
+  <section class="panel" id="p-set" hidden>
+    <h2>Impostazioni</h2>
+    <p class="hint">Restano in questo browser. Su un altro dispositivo vanno reinserite.</p>
+
+    <h3>Sincronizzazione</h3>
+    <label for="url">Indirizzo del Worker</label>
+    <input type="text" id="url" placeholder="https://lavagna.tuonome.workers.dev" autocomplete="off" spellcheck="false">
+    <label for="parola">Parola d'ordine (serve per scrivere)</label>
+    <input type="password" id="parola" autocomplete="off">
+    <label for="frase">Frase segreta (cifra gli appunti)</label>
+    <input type="password" id="frase" autocomplete="off">
+    <p class="hint">La frase segreta non esce mai da questo dispositivo: senza di lei nemmeno Cloudflare può leggere gli appunti. Deve essere identica su tutti i tuoi dispositivi, e se la perdi gli appunti non si recuperano. Lascia i tre campi vuoti per lavorare solo in locale.</p>
+
+    <h3>Promemoria</h3>
+    <label for="cad">Notifica nel browser</label>
+    <select id="cad">
+      <option value="0">Nessuna</option>
+      <option value="1">Ogni giorno</option>
+      <option value="3">Ogni 3 giorni</option>
+      <option value="7">Ogni settimana</option>
+    </select>
+    <p class="hint">Arriva solo se questa pagina è aperta in una scheda.</p>
+
+    <h3>Riordino con AI</h3>
+    <label for="key">Chiave API Anthropic</label>
+    <input type="password" id="key" placeholder="sk-ant-..." autocomplete="off">
+    <label for="mod">Modello</label>
+    <input type="text" id="mod" placeholder="claude-sonnet-5-5" spellcheck="false">
+    <div class="due">
+      <div>
+        <label for="pin">$ per milione di token in ingresso</label>
+        <input type="number" id="pin" step="0.01" min="0">
+      </div>
+      <div>
+        <label for="pout">$ per milione in uscita</label>
+        <input type="number" id="pout" step="0.01" min="0">
+      </div>
+    </div>
+    <p class="hint">I prezzi servono solo a stimare il costo mostrato dopo ogni riordino: controlla quelli veri sulla pagina dei prezzi di Anthropic e correggili qui. Senza chiave, le domande continuano ad arrivare dalle regole.</p>
+
+    <div class="row">
+      <button class="btn btn-plum" id="b-save-set">Salva</button>
+      <button class="btn" id="b-sync">Sincronizza adesso</button>
+      <button class="btn" id="b-exp">Esporta JSON</button>
+      <button class="btn" id="b-imp">Importa JSON</button>
+      <button class="btn-ghost" id="b-close-set">Chiudi</button>
+    </div>
+    <input type="file" id="file" accept="application/json,.json" hidden>
+  </section>
+
+  <section class="panel" id="p-ai" hidden>
+    <h2 id="ai-title">Proposta di riordino</h2>
+    <div id="ai-body"></div>
+    <div class="row" id="ai-row"></div>
+  </section>
+
+  <div class="board" id="board"></div>
+  <p class="empty" id="vuoto" hidden>Ancora niente sulla lavagna. Scrivi il primo appunto: con il tempo compariranno qui sopra delle domande per rimetterlo in ordine.</p>
+
+</div>
+
+<script>
+"use strict";
+const K="lavagna.v1";            /* stesso archivio della v1: gli appunti si conservano */
+const KF="lavagna.frase";        /* la frase segreta sta in un cassetto a parte */
+const G=24*3600*1000;
+let S={notes:[],answered:{},set:{cad:0,key:"",mod:"claude-sonnet-5-5",next:0,url:"",parola:"",pin:3,pout:15,scritture:{giorno:"",n:0}}};
+let frase="",coda=[],corrente=null,trascinata=null,tPush=null,inCorso=false;
+
+/* ---------- dati locali ---------- */
+function carica(){
+  try{
+    const r=localStorage.getItem(K);
+    if(r){const d=JSON.parse(r);
+      S.notes=Array.isArray(d.notes)?d.notes:[];
+      S.answered=d.answered&&typeof d.answered==="object"?d.answered:{};
+      S.set=Object.assign(S.set,d.set||{});
+      if(!S.set.scritture)S.set.scritture={giorno:"",n:0};
+    }
+    frase=localStorage.getItem(KF)||"";
+  }catch(e){console.warn("Dati illeggibili:",e)}
+}
+function salva(spingiDopo){
+  try{localStorage.setItem(K,JSON.stringify(S))}
+  catch(e){alert("Non riesco a salvare in questo browser. Esporta il JSON per non perdere gli appunti.")}
+  if(spingiDopo!==false)programmaPush();
+}
+const oggi=()=>Date.now();
+const gg=t=>Math.floor((oggi()-t)/G);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const giornoOggi=()=>new Date().toISOString().slice(0,10);
+
+function estraiTag(t){
+  const out=[];const re=/#([\p{L}\p{N}_-]{2,24})/gu;let m;
+  while((m=re.exec(t))!==null){const v=m[1].toLowerCase();if(!out.includes(v))out.push(v)}
+  return out;
+}
+function aggiungi(testo){
+  const t=testo.trim();if(!t)return;
+  S.notes.unshift({id:uid(),text:t,tags:estraiTag(t),created:oggi(),updated:oggi(),arch:false,fatta:false});
+  salva();disegna();
+}
+
+/* ---------- cifratura ---------- */
+const enc=new TextEncoder(),dec=new TextDecoder();
+function b64(bytes){let s="";for(let i=0;i<bytes.length;i+=4096)s+=String.fromCharCode.apply(null,bytes.subarray(i,i+4096));return btoa(s)}
+function deb64(s){const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}
+async function chiaveDa(f,salt){
+  const base=await crypto.subtle.importKey("raw",enc.encode(f),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:150000,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+async function cifra(obj){
+  const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
+  const k=await chiaveDa(frase,salt);
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},k,enc.encode(JSON.stringify(obj))));
+  const tutto=new Uint8Array(28+ct.length);
+  tutto.set(salt,0);tutto.set(iv,16);tutto.set(ct,28);
+  return "L2:"+b64(tutto);
+}
+async function decifra(testo){
+  if(!testo.startsWith("L2:"))throw new Error("formato non riconosciuto");
+  const u=deb64(testo.slice(3));
+  const k=await chiaveDa(frase,u.subarray(0,16));
+  const chiaro=await crypto.subtle.decrypt({name:"AES-GCM",iv:u.subarray(16,28)},k,u.subarray(28));
+  return JSON.parse(dec.decode(chiaro));
+}
+
+/* ---------- sincronizzazione ---------- */
+const pronta=()=>!!(S.set.url&&S.set.parola&&frase&&window.crypto&&crypto.subtle);
+function stato(testo,classe){
+  const e=document.getElementById("stato");
+  e.innerHTML=testo?'<span class="'+(classe||"")+'">'+esc(testo)+"</span>":"";
+}
+function contaScrittura(){
+  const g=giornoOggi();
+  if(S.set.scritture.giorno!==g)S.set.scritture={giorno:g,n:0};
+  S.set.scritture.n++;
+}
+function fondi(remoto){
+  if(!remoto||!Array.isArray(remoto.notes))return 0;
+  const m=new Map(S.notes.map(n=>[n.id,n]));
+  let nuovi=0;
+  remoto.notes.forEach(r=>{
+    if(!r||!r.id)return;
+    const l=m.get(r.id);
+    if(!l){m.set(r.id,r);nuovi++}
+    else if((r.updated||0)>(l.updated||0)){m.set(r.id,r);nuovi++}
+  });
+  S.notes=[...m.values()].sort((a,b)=>(b.created||0)-(a.created||0));
+  Object.entries(remoto.answered||{}).forEach(([k,v])=>{
+    if(!S.answered[k]||v>S.answered[k])S.answered[k]=v;
+  });
+  return nuovi;
+}
+async function tira(silenzioso){
+  if(!pronta())return false;
+  const r=await fetch(S.set.url.replace(/\/+$/,""),{cache:"no-store"});
+  if(!r.ok)throw new Error("lettura rifiutata ("+r.status+")");
+  const testo=(await r.text()).trim();
+  if(!testo){if(!silenzioso)stato("Magazzino ancora vuoto");return false}
+  const n=fondi(await decifra(testo));
+  if(n){salva(false);disegna()}
+  return true;
+}
+async function spingi(){
+  if(!pronta()||inCorso)return;
+  inCorso=true;
+  try{
+    stato("Sincronizzo…");
+    try{await tira(true)}catch(e){/* primo invio, o remoto illeggibile: procedo comunque */}
+    const corpo=await cifra({notes:S.notes,answered:S.answered,v:2});
+    const r=await fetch(S.set.url.replace(/\/+$/,""),{
+      method:"PUT",
+      headers:{"content-type":"text/plain","x-parola":S.set.parola},
+      body:corpo
+    });
+    if(r.status===403)throw new Error("parola d'ordine rifiutata");
+    if(!r.ok)throw new Error("scrittura rifiutata ("+r.status+")");
+    contaScrittura();
+    salva(false);
+    const n=S.set.scritture.n;
+    stato("Sincronizzato · "+n+" scritture oggi"+(n>800?" (limite 1.000)":""),n>800?"warn":"ok");
+  }catch(e){
+    stato("Non sincronizzato: "+e.message+" — gli appunti restano salvati qui","warn");
+  }finally{inCorso=false}
+}
+function programmaPush(){
+  if(!pronta())return;
+  clearTimeout(tPush);
+  stato("Modifiche da inviare…");
+  tPush=setTimeout(spingi,6000);   /* una scrittura sola per raffica di modifiche */
+}
+window.addEventListener("beforeunload",()=>{if(tPush){clearTimeout(tPush);spingi()}});
+
+/* ---------- regole ---------- */
+const STOP=new Set("il lo la i gli le un uno una di a da in con su per tra fra e o che non è sono del della dei delle al alla ai alle dal dalla nel nella sul sulla mi ti si ci vi me te se lui lei noi voi loro come più meno anche solo ma poi già qui qua questo questa quello quella cosa fare ha ho hai abbiamo avete hanno".split(" "));
+const VERBI=["chiama","chiamare","compra","comprare","manda","mandare","invia","inviare","ordina","ordinare","verifica","verificare","controlla","controllare","chiedi","chiedere","prepara","preparare","scrivi","scrivere","finisci","finire","aggiorna","aggiornare","prenota","prenotare","paga","pagare","stampa","stampare","rivedi","rivedere","cerca","cercare","monta","montare","provare","prova","sistemare","sistema","pulire","pulisci","misurare","misura","disegnare","disegna"];
+
+function parole(t){
+  return t.toLowerCase().replace(/#[\p{L}\p{N}_-]+/gu," ").replace(/[^\p{L}\p{N}\s]/gu," ")
+    .split(/\s+/).filter(w=>w.length>3&&!STOP.has(w));
+}
+function simili(a,b){
+  const A=new Set(parole(a)),B=new Set(parole(b));
+  if(A.size<3||B.size<3)return 0;
+  let n=0;A.forEach(w=>{if(B.has(w))n++});
+  return n/(A.size+B.size-n);
+}
+function sembraAttivita(t){
+  const p=t.trim().toLowerCase().split(/\s+/)[0]||"";
+  if(VERBI.includes(p))return true;
+  return p.length>4&&/(are|ere|ire)$/.test(p);
+}
+const taglia=t=>t.length>60?t.slice(0,58).trim()+"…":t;
+const attive=()=>S.notes.filter(n=>!n.arch);
+function tuttiTag(){
+  const m=new Map();
+  attive().forEach(n=>n.tags.forEach(t=>m.set(t,(m.get(t)||0)+1)));
+  return [...m.entries()].sort((a,b)=>b[1]-a[1]).map(e=>e[0]);
+}
+function costruisciDomande(){
+  const q=[],ns=attive();
+  ns.forEach(n=>{
+    if(!n.tags.length&&gg(n.created)>=3)
+      q.push({id:"tag:"+n.id,kind:"tag",pri:2,q:"Dove metti questo appunto?",
+        ctx:"Senza etichetta da "+gg(n.created)+" giorni: <em>"+esc(taglia(n.text))+"</em>",note:n});
+  });
+  for(let i=0;i<ns.length;i++)for(let j=i+1;j<ns.length;j++){
+    if(simili(ns[i].text,ns[j].text)>=.45)
+      q.push({id:"merge:"+ns[i].id+"|"+ns[j].id,kind:"merge",pri:1,q:"Queste due dicono la stessa cosa?",
+        ctx:"<em>"+esc(taglia(ns[i].text))+"</em> · <em>"+esc(taglia(ns[j].text))+"</em>",a:ns[i],b:ns[j]});
+  }
+  ns.forEach(n=>{
+    if(gg(n.updated)>=30&&!n.fatta)
+      q.push({id:"stale:"+n.id+":"+Math.floor(gg(n.updated)/30),kind:"stale",pri:3,q:"Questo appunto vale ancora?",
+        ctx:"Fermo da "+gg(n.updated)+" giorni: <em>"+esc(taglia(n.text))+"</em>",note:n});
+    if(sembraAttivita(n.text)&&!n.tags.includes("attività")&&!n.fatta&&gg(n.created)>=1)
+      q.push({id:"task:"+n.id,kind:"task",pri:4,q:"È una cosa da fare?",
+        ctx:"<em>"+esc(taglia(n.text))+"</em>",note:n});
+  });
+  const now=oggi();
+  return q.filter(x=>!(S.answered[x.id]&&S.answered[x.id]>now)).sort((a,b)=>a.pri-b.pri).slice(0,3);
+}
+
+/* ---------- pannello domanda ---------- */
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function rinvia(id,giorni){S.answered[id]=oggi()+giorni*G}
+function prossima(){
+  corrente=coda.shift()||null;
+  const box=document.getElementById("ask");
+  if(!corrente){box.hidden=true;return}
+  box.hidden=false;
+  document.getElementById("ask-q").textContent=corrente.q;
+  document.getElementById("ask-ctx").innerHTML=corrente.ctx;
+  document.getElementById("ask-foot").textContent=coda.length?"Altre "+coda.length+" in attesa":"Ultima domanda";
+  const o=document.getElementById("ask-opts");o.innerHTML="";
+  const b=(t,fn,plum)=>{const e=document.createElement("button");e.className="btn"+(plum?" btn-plum":"");e.textContent=t;e.onclick=fn;o.appendChild(e)};
+  const chiudi=()=>{salva();disegna();prossima()};
+
+  if(corrente.kind==="tag"){
+    tuttiTag().slice(0,4).forEach(t=>b("#"+t,()=>{corrente.note.tags=[t];corrente.note.text+=" #"+t;corrente.note.updated=oggi();chiudi()}));
+    b("Nuova etichetta…",()=>{
+      const v=prompt("Etichetta (una parola):");
+      if(v&&v.trim()){const t=v.trim().replace(/^#/,"").toLowerCase();corrente.note.tags=[t];corrente.note.text+=" #"+t;corrente.note.updated=oggi()}
+      chiudi();});
+    b("Lascia così",()=>{rinvia(corrente.id,7);chiudi()});
+  }
+  if(corrente.kind==="merge"){
+    b("Unisci",()=>{
+      corrente.a.text=corrente.a.text+"\n— "+corrente.b.text;
+      corrente.a.tags=[...new Set([...corrente.a.tags,...corrente.b.tags])];
+      corrente.a.updated=oggi();corrente.b.arch=true;corrente.b.updated=oggi();chiudi();},true);
+    b("Tienile separate",()=>{rinvia(corrente.id,30);chiudi()});
+  }
+  if(corrente.kind==="stale"){
+    b("Vale ancora",()=>{corrente.note.updated=oggi();chiudi()});
+    b("Archivia",()=>{corrente.note.arch=true;corrente.note.updated=oggi();chiudi()});
+  }
+  if(corrente.kind==="task"){
+    b("Sì, è da fare",()=>{corrente.note.tags.push("attività");corrente.note.text+=" #attività";corrente.note.updated=oggi();chiudi()},true);
+    b("No, è un appunto",()=>{rinvia(corrente.id,3650);chiudi()});
+  }
+  b("Dopo",()=>{rinvia(corrente.id,1);salva();prossima()});
+}
+
+/* ---------- lavagna ---------- */
+function disegna(){
+  const board=document.getElementById("board"),ns=attive();
+  board.innerHTML="";
+  document.getElementById("vuoto").hidden=ns.length>0;
+  document.getElementById("conta").textContent=ns.length?ns.length+(ns.length===1?" appunto":" appunti"):"";
+  const col=new Map();
+  tuttiTag().forEach(t=>col.set(t,[]));
+  const senza=[];
+  ns.forEach(n=>{
+    if(!n.tags.length){senza.push(n);return}
+    const t=n.tags[0];
+    if(!col.has(t))col.set(t,[]);
+    col.get(t).push(n);
+  });
+  if(senza.length)col.set("",senza);
+
+  col.forEach((lista,tag)=>{
+    if(!lista.length)return;
+    const c=document.createElement("section");c.className="col";c.dataset.tag=tag;
+    c.innerHTML='<div class="col-head"><span class="col-name">'+(tag?'<span class="tag">#</span>'+esc(tag):"Senza etichetta")+'</span><span class="col-n">'+lista.length+'</span></div>';
+    const box=document.createElement("div");box.className="slips";
+    lista.forEach(n=>box.appendChild(foglietto(n)));
+    c.appendChild(box);
+    c.addEventListener("dragover",e=>{e.preventDefault();c.classList.add("over")});
+    c.addEventListener("dragleave",()=>c.classList.remove("over"));
+    c.addEventListener("drop",e=>{
+      e.preventDefault();c.classList.remove("over");
+      const n=S.notes.find(x=>x.id===trascinata);if(!n)return;
+      n.text=n.text.replace(/#[\p{L}\p{N}_-]+/gu,"").replace(/\s+/g," ").trim();
+      n.tags=tag?[tag]:[];
+      if(tag)n.text+=" #"+tag;
+      n.updated=oggi();salva();disegna();
+    });
+    board.appendChild(c);
+  });
+}
+function foglietto(n){
+  const d=document.createElement("article");
+  d.className="slip"+(n.fatta?" fatta":"");d.draggable=true;d.tabIndex=0;
+  const t=document.createElement("div");t.className="slip-text";t.textContent=n.text;
+  const m=document.createElement("div");m.className="slip-meta";
+  const data=new Date(n.created).toLocaleDateString("it-IT",{day:"numeric",month:"short"});
+  m.innerHTML='<span>'+data+'</span><span class="sp"></span>';
+  const sp=m.querySelector(".sp");
+  const az=(lbl,ti,fn)=>{const b=document.createElement("button");b.textContent=lbl;b.title=ti;b.onclick=fn;sp.appendChild(b)};
+  az(n.fatta?"↺":"✓",n.fatta?"Riapri":"Segna come fatta",()=>{n.fatta=!n.fatta;n.updated=oggi();salva();disegna()});
+  az("✎","Modifica",()=>{const v=prompt("Modifica l'appunto:",n.text);if(v!==null&&v.trim()){n.text=v.trim();n.tags=estraiTag(n.text);n.updated=oggi();salva();disegna()}});
+  az("×","Archivia",()=>{n.arch=true;n.updated=oggi();salva();disegna()});
+  d.appendChild(t);d.appendChild(m);
+  d.addEventListener("dragstart",()=>{trascinata=n.id;d.classList.add("dragging")});
+  d.addEventListener("dragend",()=>{trascinata=null;d.classList.remove("dragging")});
+  return d;
+}
+
+/* ---------- AI ---------- */
+const pAI=document.getElementById("p-ai"),aiBody=document.getElementById("ai-body"),aiRow=document.getElementById("ai-row"),aiTitle=document.getElementById("ai-title");
+function chiudiAI(){pAI.hidden=true;aiBody.innerHTML="";aiRow.innerHTML=""}
+function bottoneAI(t,fn,plum){const b=document.createElement("button");b.className=plum?"btn btn-plum":"btn";b.textContent=t;b.onclick=fn;aiRow.appendChild(b)}
+function righeUso(u){
+  if(!u)return"";
+  const i=u.input_tokens||0,o=u.output_tokens||0;
+  const c=i/1e6*(Number(S.set.pin)||0)+o/1e6*(Number(S.set.pout)||0);
+  return '<p class="uso">Consumo: '+i.toLocaleString("it-IT")+" token in ingresso, "+o.toLocaleString("it-IT")+
+         " in uscita — circa $"+c.toFixed(4)+" con i prezzi impostati.</p>";
+}
+async function riordinaAI(){
+  const ns=attive();
+  if(!S.set.key){apriSet();alert("Serve la tua chiave API Anthropic, nelle impostazioni.");return}
+  if(ns.length<3){alert("Servono almeno tre appunti perché valga la pena chiedere.");return}
+  pAI.hidden=false;aiTitle.textContent="Riordino in corso";aiBody.innerHTML='<p class="hint">Sto leggendo '+ns.length+" appunti…</p>";aiRow.innerHTML="";
+  const elenco=ns.map(n=>({id:n.id,testo:n.text})),mod=S.set.mod||"claude-sonnet-5-5";
+  try{
+    const r=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{"content-type":"application/json","x-api-key":S.set.key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({model:mod,max_tokens:1400,messages:[{role:"user",content:
+        "Questi sono appunti sparsi di una persona, in italiano.\n"+JSON.stringify(elenco,null,1)+
+        "\n\nRaggruppali in 2-6 gruppi coerenti, segnala i doppioni e scrivi fino a 3 domande brevi che aiutino la persona a mettere ordine (domande concrete sul contenuto, non generiche).\n"+
+        "Rispondi SOLO con JSON, nessun testo intorno, nessun backtick:\n"+
+        '{"gruppi":[{"etichetta":"unaparola","ids":["id1"]}],"doppioni":[["id1","id2"]],"domande":["..."]}'}]})
+    });
+    if(!r.ok){const t=await r.text();throw new Error(r.status+" "+t.slice(0,200))}
+    const d=await r.json();
+    const testo=(d.content||[]).filter(c=>c.type==="text").map(c=>c.text).join("\n").replace(/```json|```/g,"").trim();
+    mostraProposta(JSON.parse(testo),d.usage);
+  }catch(e){
+    aiTitle.textContent="Riordino non riuscito";
+    aiBody.innerHTML='<p class="hint">'+esc(e.message)+'</p><p class="hint">Controlla chiave, modello e credito residuo. Gli appunti non sono stati toccati.</p>';
+    bottoneAI("Chiudi",chiudiAI);
+  }
+}
+function mostraProposta(p,uso){
+  const gruppi=Array.isArray(p.gruppi)?p.gruppi:[],dop=Array.isArray(p.doppioni)?p.doppioni:[],dom=Array.isArray(p.domande)?p.domande:[];
+  aiTitle.textContent="Proposta di riordino";
+  let h="";
+  if(gruppi.length)h+='<div class="prop"><strong>Gruppi</strong><ul>'+gruppi.map(g=>"<li>#"+esc(g.etichetta)+" — "+(g.ids||[]).length+" appunti</li>").join("")+"</ul></div>";
+  if(dop.length)h+='<div class="prop"><strong>Possibili doppioni</strong><ul>'+dop.map(c=>{
+    const a=S.notes.find(n=>n.id===c[0]),b=S.notes.find(n=>n.id===c[1]);
+    return a&&b?"<li>"+esc(taglia(a.text))+" · "+esc(taglia(b.text))+"</li>":""}).join("")+"</ul></div>";
+  if(dom.length)h+='<div class="prop"><strong>Domande</strong><ul>'+dom.map(q=>"<li>"+esc(q)+"</li>").join("")+"</ul></div>";
+  aiBody.innerHTML=(h||'<p class="hint">Nessuna proposta: la lavagna è già in ordine.</p>')+righeUso(uso);
+  aiRow.innerHTML="";
+  if(gruppi.length)bottoneAI("Applica i gruppi",()=>{
+    gruppi.forEach(g=>{
+      const t=String(g.etichetta||"").replace(/^#/,"").toLowerCase().replace(/[^\p{L}\p{N}_-]/gu,"");
+      if(!t)return;
+      (g.ids||[]).forEach(id=>{const n=S.notes.find(x=>x.id===id);
+        if(n&&!n.tags.includes(t)){n.tags.unshift(t);n.text+=" #"+t;n.updated=oggi()}});
+    });
+    salva();disegna();chiudiAI();},true);
+  if(dom.length)bottoneAI("Mettile in coda",()=>{
+    dom.forEach((q,i)=>coda.push({id:"ai:"+oggi()+":"+i,kind:"ai",pri:0,q:String(q),ctx:"Domanda proposta dall'AI"}));
+    chiudiAI();if(document.getElementById("ask").hidden)prossima();});
+  bottoneAI("Chiudi",chiudiAI);
+}
+
+/* ---------- promemoria ---------- */
+function programma(){
+  const d=Number(S.set.cad)||0;
+  S.set.next=d?oggi()+d*G:0;salva(false);
+}
+function controllaPromemoria(){
+  const d=Number(S.set.cad)||0;
+  if(!d||!S.set.next||oggi()<S.set.next)return;
+  if(window.Notification&&Notification.permission==="granted"){
+    const n=costruisciDomande().length;
+    new Notification("Lavagna",{body:n?"Ci sono "+n+" domande in attesa.":"Un giro sugli appunti?"});
+  }
+  programma();
+}
+
+/* ---------- impostazioni ---------- */
+const pSet=document.getElementById("p-set");
+function apriSet(){
+  document.getElementById("url").value=S.set.url||"";
+  document.getElementById("parola").value=S.set.parola||"";
+  document.getElementById("frase").value=frase||"";
+  document.getElementById("cad").value=String(S.set.cad||0);
+  document.getElementById("key").value=S.set.key||"";
+  document.getElementById("mod").value=S.set.mod||"claude-sonnet-5-5";
+  document.getElementById("pin").value=S.set.pin;
+  document.getElementById("pout").value=S.set.pout;
+  pSet.hidden=false;pSet.scrollIntoView({block:"nearest"});
+}
+document.getElementById("b-set").onclick=()=>{pSet.hidden?apriSet():pSet.hidden=true};
+document.getElementById("b-close-set").onclick=()=>{pSet.hidden=true};
+document.getElementById("b-save-set").onclick=async()=>{
+  const prima=S.set.cad;
+  let u=document.getElementById("url").value.trim().replace(/\/+$/,"");
+  if(u&&!/^https?:\/\//.test(u))u="https://"+u;
+  S.set.url=u;
+  S.set.parola=document.getElementById("parola").value.trim();
+  S.set.cad=Number(document.getElementById("cad").value)||0;
+  S.set.key=document.getElementById("key").value.trim();
+  S.set.mod=document.getElementById("mod").value.trim()||"claude-sonnet-5-5";
+  S.set.pin=Number(document.getElementById("pin").value)||0;
+  S.set.pout=Number(document.getElementById("pout").value)||0;
+  frase=document.getElementById("frase").value;
+  try{frase?localStorage.setItem(KF,frase):localStorage.removeItem(KF)}catch(e){}
+  if(S.set.cad&&window.Notification&&Notification.permission==="default"){try{await Notification.requestPermission()}catch(e){}}
+  if(S.set.cad!==prima||!S.set.next)programma();else salva(false);
+  pSet.hidden=true;
+  if(pronta()){try{await tira();await spingi()}catch(e){stato("Non sincronizzato: "+e.message,"warn")}}
+  else stato("");
+};
+document.getElementById("b-sync").onclick=async()=>{
+  if(!pronta()){stato("Mancano indirizzo, parola d'ordine o frase segreta","warn");return}
+  try{stato("Sincronizzo…");await tira();await spingi()}
+  catch(e){stato("Non sincronizzato: "+e.message,"warn")}
+};
+document.getElementById("b-exp").onclick=()=>{
+  const copia={notes:S.notes,answered:S.answered,set:Object.assign({},S.set,{key:"",parola:""})};
+  const b=new Blob([JSON.stringify(copia,null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(b);
+  a.download="lavagna-"+giornoOggi()+".json";a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+};
+document.getElementById("b-imp").onclick=()=>document.getElementById("file").click();
+document.getElementById("file").onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const d=JSON.parse(r.result);
+      if(!Array.isArray(d.notes))throw new Error("manca l'elenco degli appunti");
+      const n=fondi(d);
+      salva();disegna();alert("Importati: "+n+" appunti nuovi o più recenti.");
+    }catch(err){alert("File non valido: "+err.message)}
+    e.target.value="";
+  };
+  r.readAsText(f);
+};
+
+/* ---------- avvio ---------- */
+const ta=document.getElementById("nota");
+function autosize(){ta.style.height="auto";ta.style.height=Math.min(ta.scrollHeight,220)+"px"}
+ta.addEventListener("input",autosize);
+ta.addEventListener("keydown",e=>{
+  if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();aggiungi(ta.value);ta.value="";autosize();ta.focus()}
+});
+document.getElementById("b-add").onclick=()=>{aggiungi(ta.value);ta.value="";autosize();ta.focus()};
+document.getElementById("b-ai").onclick=riordinaAI;
+
+carica();disegna();
+coda=costruisciDomande();prossima();
+controllaPromemoria();
+setInterval(controllaPromemoria,3600*1000);
+
+if(pronta()){
+  stato("Sincronizzo…");
+  tira().then(()=>{
+    coda=costruisciDomande();
+    if(document.getElementById("ask").hidden)prossima();
+    const n=S.set.scritture.giorno===giornoOggi()?S.set.scritture.n:0;
+    stato("Sincronizzato · "+n+" scritture oggi","ok");
+  }).catch(e=>stato("Non sincronizzato: "+e.message+" — gli appunti restano salvati qui","warn"));
+}else if(S.set.url||S.set.parola||frase){
+  stato("Sincronizzazione incompleta: controlla indirizzo, parola d'ordine e frase segreta","warn");
+}
+</script>
+</body>
+</html>
